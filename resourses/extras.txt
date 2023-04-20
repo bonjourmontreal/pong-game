@@ -1,0 +1,75 @@
+Move Paddle Function (OLD VS NEW)
+
+void move_paddles(Paddle *paddleLeft, Paddle *paddleRight)
+{
+    // Old Code
+    // // Update left paddle
+    // if (paddleLeft->direction == UP && paddleLeft->segments[0].y != 1)
+    // {
+    //     mvprintw(paddleLeft->segments[PADDLE_LENGHT - 1].y, paddleLeft->segments[PADDLE_LENGHT - 1].x, "  ");
+    //     for (int i = 0; i < PADDLE_LENGHT; i++)
+    //     {
+    //         paddleLeft->segments[i].y -= 1;
+    //     }
+    // }
+    // else if (paddleLeft->direction == DOWN && paddleLeft->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
+    // {
+    //     mvprintw(paddleLeft->segments[0].y, paddleLeft->segments[0].x, "  ");
+    //     for (int i = 0; i < PADDLE_LENGHT; i++)
+    //     {
+    //         paddleLeft->segments[i].y += 1;
+    //     }
+    // }
+    // // Update right paddle
+    // if (paddleRight->direction == UP && paddleRight->segments[0].y != 1)
+    // {
+    //     mvprintw(paddleRight->segments[PADDLE_LENGHT - 1].y, paddleRight->segments[PADDLE_LENGHT - 1].x, "  ");
+    //     for (int i = 0; i < PADDLE_LENGHT; i++)
+    //     {
+    //         paddleRight->segments[i].y -= 1;
+    //     }
+    // }
+    // else if (paddleRight->direction == DOWN && paddleRight->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
+    // {
+    //     mvprintw(paddleRight->segments[0].y, paddleRight->segments[0].x, "  ");
+    //     for (int i = 0; i < PADDLE_LENGHT; i++)
+    //     {
+    //         paddleRight->segments[i].y += 1;
+    //     }
+    // }
+    //
+    // // Reset paddle direction
+    // paddleLeft->direction = STANDBY;
+    // paddleRight->direction = STANDBY;
+
+    // Improved code
+    Paddle* paddles[] = { paddleLeft, paddleRight }; // array of pointers
+
+    // Update paddles
+    for (int i = 0; i < 2; i++)
+    {
+        Paddle* paddle = paddles[i]; // pointer to Paddle left or right
+        int direction = (paddle == paddleLeft) ? paddleLeft->direction : paddleRight->direction;
+
+        // Update paddle position
+        if (direction == UP && paddle->segments[0].y != 1)
+        {
+            mvprintw(paddle->segments[PADDLE_LENGHT - 1].y, paddle->segments[PADDLE_LENGHT - 1].x, "  ");
+            for (int i = 0; i < PADDLE_LENGHT; i++)
+            {
+                paddle->segments[i].y -= 1;
+            }
+        }
+        else if (direction == DOWN && paddle->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
+        {
+            mvprintw(paddle->segments[0].y, paddle->segments[0].x, "  ");
+            for (int i = 0; i < PADDLE_LENGHT; i++)
+            {
+                paddle->segments[i].y += 1;
+            }
+        }
+
+        // Reset paddle direction
+        paddle->direction = STANDBY;
+    }
+}

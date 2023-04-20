@@ -12,12 +12,13 @@
 // Define constants
 #define BOARD_HEIGHT 30
 #define BOARD_WIDTH 80
-#define PADDLE_LENGHT 4
+#define PADDLE_LENGTH 4
 #define GAP_PADDLE_WALL 2
 #define INITIAL_BALL_SPEED 1
 #define INITIAL_BALL_THETA 35
-#define PI 3.1415
-#define GAME_OVER_SCORE 3
+
+const double PI = 3.1415;
+const int GAME_OVER_SCORE = 3;
 
 // Define enums
 typedef enum
@@ -36,7 +37,7 @@ typedef struct
 
 typedef struct
 {
-    Point segments[PADDLE_LENGHT]; // Paddle is composed of multiple points
+    Point segments[PADDLE_LENGTH]; // Paddle is composed of multiple points
     Direction direction;
 }Paddle;
 
@@ -107,7 +108,7 @@ void init_ncurses()
 void reset_game(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight)
 {
     // Reset paddles and ball
-    for (int i = 0; i < PADDLE_LENGHT; i++)
+    for (int i = 0; i < PADDLE_LENGTH; i++)
     {
         mvprintw(paddleLeft->segments[i].y, paddleLeft->segments[i].x, "  ");
         mvprintw(paddleRight->segments[i].y, paddleRight->segments[i].x, "  ");
@@ -125,10 +126,10 @@ void generate_paddles(Paddle *paddleLeft, Paddle *paddleRight)
     paddleRight->direction = STANDBY;
 
     // Generate the paddle segments for the left and right paddles
-    for (int i = 0; i < PADDLE_LENGHT; i++)
+    for (int i = 0; i < PADDLE_LENGTH; i++)
     {
         paddleLeft->segments[i].x = GAP_PADDLE_WALL;
-        paddleLeft->segments[i].y = (BOARD_HEIGHT / 2 - PADDLE_LENGHT/2 + 1) + i;
+        paddleLeft->segments[i].y = (BOARD_HEIGHT / 2 - PADDLE_LENGTH/2 + 1) + i;
 
         paddleRight->segments[i].x = BOARD_WIDTH - GAP_PADDLE_WALL;
         paddleRight->segments[i].y = paddleLeft->segments[i].y;
@@ -212,7 +213,7 @@ void draw_board(bool draw_once)
 
 void draw_paddles(Paddle *paddleLeft, Paddle *paddleRight)
 {
-    for (int i = 0; i < PADDLE_LENGHT; i++)
+    for (int i = 0; i < PADDLE_LENGTH; i++)
     {
         mvprintw(paddleLeft->segments[i].y, paddleLeft->segments[i].x, "||");
         mvprintw(paddleRight->segments[i].y, paddleRight->segments[i].x, "||");
@@ -224,60 +225,48 @@ void handle_input(Paddle *paddleLeft, Paddle *paddleRight, int userInput)
     switch (userInput)
     {
         case 'w':
-            paddleLeft->direction = UP;
+            paddleLeft->direction = (paddleLeft->direction == DOWN) ? STANDBY : UP;
             break;
         case 's':
-            paddleLeft->direction = DOWN;
+            paddleLeft->direction = (paddleLeft->direction == UP) ? STANDBY : DOWN;
             break;
         case KEY_UP:
-            paddleRight->direction = UP;
+            paddleRight->direction = (paddleRight->direction == DOWN) ? STANDBY : UP;
             break;
         case KEY_DOWN:
-            paddleRight->direction = DOWN;
+            paddleRight->direction = (paddleRight->direction == UP) ? STANDBY : DOWN;
             break;
     }
 }
 
 void move_paddles(Paddle *paddleLeft, Paddle *paddleRight)
 {
-    // Update left paddle
-    if (paddleLeft->direction == UP && paddleLeft->segments[0].y != 1)
-    {
-        mvprintw(paddleLeft->segments[PADDLE_LENGHT - 1].y, paddleLeft->segments[PADDLE_LENGHT - 1].x, "  ");
-        for (int i = 0; i < PADDLE_LENGHT; i++)
-        {
-            paddleLeft->segments[i].y -= 1;
-        }
-    }
-    else if (paddleLeft->direction == DOWN && paddleLeft->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
-    {
-        mvprintw(paddleLeft->segments[0].y, paddleLeft->segments[0].x, "  ");
-        for (int i = 0; i < PADDLE_LENGHT; i++)
-        {
-            paddleLeft->segments[i].y += 1;
-        }
-    }
-    // Update right paddle
-    if (paddleRight->direction == UP && paddleRight->segments[0].y != 1)
-    {
-        mvprintw(paddleRight->segments[PADDLE_LENGHT - 1].y, paddleRight->segments[PADDLE_LENGHT - 1].x, "  ");
-        for (int i = 0; i < PADDLE_LENGHT; i++)
-        {
-            paddleRight->segments[i].y -= 1;
-        }
-    }
-    else if (paddleRight->direction == DOWN && paddleRight->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
-    {
-        mvprintw(paddleRight->segments[0].y, paddleRight->segments[0].x, "  ");
-        for (int i = 0; i < PADDLE_LENGHT; i++)
-        {
-            paddleRight->segments[i].y += 1;
-        }
-    }
+    Paddle* paddles[] = { paddleLeft, paddleRight }; // array of pointers
 
-    // Reset paddle direction
-    paddleLeft->direction = STANDBY;
-    paddleRight->direction = STANDBY;
+    // Update paddles
+    for (int i = 0; i < 2; i++)
+    {
+        Paddle* paddle = paddles[i]; // pointer to Paddle left or right
+        int direction = (paddle == paddleLeft) ? paddleLeft->direction : paddleRight->direction;
+
+        // Update paddle position
+        if (direction == UP && paddle->segments[0].y != 1)
+        {
+            mvprintw(paddle->segments[PADDLE_LENGTH - 1].y, paddle->segments[PADDLE_LENGTH - 1].x, "  ");
+            for (int i = 0; i < PADDLE_LENGTH; i++)
+            {
+                paddle->segments[i].y -= 1;
+            }
+        }
+        else if (direction == DOWN && paddle->segments[PADDLE_LENGTH - 1].y != BOARD_HEIGHT)
+        {
+            mvprintw(paddle->segments[0].y, paddle->segments[0].x, "  ");
+            for (int i = 0; i < PADDLE_LENGTH; i++)
+            {
+                paddle->segments[i].y += 1;
+            }
+        }
+    }
 }
 
 void draw_ball(Ball *ball)
@@ -338,7 +327,7 @@ bool check_ball_side_wall_collision(Ball *ball, int *scoreLeft, int *scoreRight)
 void check_ball_paddle_collision(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight)
 {
     // Calculate new angle of reflection
-    for (int i = 0; i < PADDLE_LENGHT; i++)
+    for (int i = 0; i < PADDLE_LENGTH; i++)
     {
         if (ball->location.x == paddleLeft->segments[i].x + 1 && ball->location.y == paddleLeft->segments[i].y ||
             ball->location.x == paddleRight->segments[i].x - 1 && ball->location.y == paddleRight->segments[i].y)
