@@ -11,8 +11,8 @@
 #define BOARD_WIDTH 80
 #define PADDLE_LENGHT 4
 #define GAP_PADDLE_WALL 2
-#define INITIAL_BALL_SPEED 0.1
-#define INITIAL_BALL_THETA 90
+#define INITIAL_BALL_SPEED 1
+#define INITIAL_BALL_THETA 35
 #define PI 3.1415
 
 typedef enum
@@ -38,52 +38,42 @@ typedef struct
 {
     Point location;
     double speed;
-    double speed_x;
-    double speed_y;
-    double theta_degrees;
+    double speedX;
+    double speedY;
+    double thetaDeg;
 }Ball;
 
 void init_ncurses(); // Initializes ncurses and sets up terminal for gameplay
 void draw_board();
-void generate_paddles(Paddle *paddle_left, Paddle *paddle_right);
+void generate_paddles(Paddle *paddleLeft, Paddle *paddleRight);
 void generate_ball(Ball *ball);
 
-void draw_paddles(Paddle *paddle_left, Paddle *paddle_right);
+void draw_paddles(Paddle *paddleLeft, Paddle *paddleRight);
 void draw_ball(Ball *ball);
-void handle_input(Paddle *paddle_left, Paddle *paddle_right, int user_input);
-void move_paddles(Paddle *paddle_left, Paddle *paddle_right);
-void move_ball(Ball *ball);
+void handle_input(Paddle *paddleLeft, Paddle *paddleRight, int userInput);
+void move_paddles(Paddle *paddleLeft, Paddle *paddleRight);
+void move_ball(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight);
+
+void check_ball_top_down_wall_collision(Ball *ball);
+void check_ball_side_wall_collision(Ball *ball, Paddle **paddleLeft, Paddle **paddleRight, int scoreLeft, int scoreRight);
+void check_ball_paddle_collision(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight);
+void reset_game(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight);
+void game_loop(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight, int *scoreLeft, int *scoreRight);
 
 int main()
 {
+    int scoreLeft = 0;
+    int scoreRight = 0;
+
     init_ncurses();
     draw_board();
 
-    Paddle paddle_left;
-    Paddle paddle_right;
+    Paddle paddleLeft;
+    Paddle paddleRight;
     Ball ball;
     
-    generate_paddles(&paddle_left, &paddle_right);
-    generate_ball(&ball);
-    
-
-    while(1)
-    {
-        int ch;
-        ch = getch();
-
-        draw_paddles(&paddle_left, &paddle_right);
-        draw_ball(&ball);
-
-        handle_input(&paddle_left, &paddle_right, ch);
-        move_paddles(&paddle_left, &paddle_right);
-        move_ball(&ball);
-
-        if (ch == 'q')
-        {
-            break;
-        }
-    }
+    reset_game(&ball, &paddleLeft, &paddleRight);
+    game_loop(&ball, &paddleLeft, &paddleRight, &scoreLeft, &scoreRight);
     
     // Clean up and close ncurses
     endwin();
@@ -97,7 +87,7 @@ void init_ncurses()
     keypad(stdscr, TRUE); // Enable special keys
     noecho(); // Don't echo user input
     curs_set(0); // Hide the cursor
-    timeout(300); // Set getch() non-blocking with 100ms delay
+    timeout(100); // Set getch() non-blocking with 100ms delay
 }
 
 void draw_board()
@@ -111,95 +101,100 @@ void draw_board()
             {
                 mvprintw(j, i, "#");
             }
+
+            if (j > 0 && j <= BOARD_HEIGHT && i == BOARD_WIDTH / 2)
+            {
+                mvprintw(j, i, "|");
+            }
         }
     }
 }
 
-void generate_paddles(Paddle *paddle_left, Paddle *paddle_right)
+void generate_paddles(Paddle *paddleLeft, Paddle *paddleRight)
 {
-    paddle_left->direction = STANDBY;
-    paddle_right->direction = STANDBY;
+    paddleLeft->direction = STANDBY;
+    paddleRight->direction = STANDBY;
 
     for (int i = 0; i < PADDLE_LENGHT; i++)
     {
-        paddle_left->segments[i].x = GAP_PADDLE_WALL;
-        paddle_left->segments[i].y = (BOARD_HEIGHT / 2 - PADDLE_LENGHT/2 + 1) + i;
+        paddleLeft->segments[i].x = GAP_PADDLE_WALL;
+        paddleLeft->segments[i].y = (BOARD_HEIGHT / 2 - PADDLE_LENGHT/2 + 1) + i;
 
-        paddle_right->segments[i].x = BOARD_WIDTH - GAP_PADDLE_WALL;
-        paddle_right->segments[i].y = paddle_left->segments[i].y;
+        paddleRight->segments[i].x = BOARD_WIDTH - GAP_PADDLE_WALL;
+        paddleRight->segments[i].y = paddleLeft->segments[i].y;
     }
 }
 
-void draw_paddles(Paddle *paddle_left, Paddle *paddle_right)
+void draw_paddles(Paddle *paddleLeft, Paddle *paddleRight)
 {
     for (int i = 0; i < PADDLE_LENGHT; i++)
     {
-        mvprintw(paddle_left->segments[i].y, paddle_left->segments[i].x, "||");
-        mvprintw(paddle_right->segments[i].y, paddle_right->segments[i].x, "||");
+        mvprintw(paddleLeft->segments[i].y, paddleLeft->segments[i].x, "||");
+        mvprintw(paddleRight->segments[i].y, paddleRight->segments[i].x, "||");
     }
 
-    paddle_left->direction = STANDBY;
-    paddle_right->direction = STANDBY;
+    paddleLeft->direction = STANDBY;
+    paddleRight->direction = STANDBY;
 
 }
 
-void handle_input(Paddle *paddle_left, Paddle *paddle_right, int user_input)
+void handle_input(Paddle *paddleLeft, Paddle *paddleRight, int userInput)
 {
-    switch (user_input)
+    switch (userInput)
     {
         case 'w':
-            paddle_left->direction = UP;
+            paddleLeft->direction = UP;
             break;
         case 's':
-            paddle_left->direction = DOWN;
+            paddleLeft->direction = DOWN;
             break;
         case KEY_UP:
-            paddle_right->direction = UP;
+            paddleRight->direction = UP;
             break;
         case KEY_DOWN:
-            paddle_right->direction = DOWN;
+            paddleRight->direction = DOWN;
             break;
         default:
-            paddle_left->direction = STANDBY;
-            paddle_right->direction = STANDBY;
+            paddleLeft->direction = STANDBY;
+            paddleRight->direction = STANDBY;
             break;
     }
 }
 
-void move_paddles(Paddle *paddle_left, Paddle *paddle_right)
+void move_paddles(Paddle *paddleLeft, Paddle *paddleRight)
 {
     // Update left paddle
-    if (paddle_left->direction == UP && paddle_left->segments[0].y != 1)
+    if (paddleLeft->direction == UP && paddleLeft->segments[0].y != 1)
     {
         for (int i = 0; i < PADDLE_LENGHT; i++)
         {
-            mvprintw(paddle_left->segments[PADDLE_LENGHT - 1].y, paddle_left->segments[PADDLE_LENGHT - 1].x, "  ");
-            paddle_left->segments[i].y -= 1;
+            mvprintw(paddleLeft->segments[PADDLE_LENGHT - 1].y, paddleLeft->segments[PADDLE_LENGHT - 1].x, "  ");
+            paddleLeft->segments[i].y -= 1;
         }
     }
-    else if (paddle_left->direction == DOWN && paddle_left->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
+    else if (paddleLeft->direction == DOWN && paddleLeft->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
     {
         for (int i = 0; i < PADDLE_LENGHT; i++)
         {
-            mvprintw(paddle_left->segments[0].y, paddle_left->segments[0].x, "  ");
-            paddle_left->segments[i].y += 1;
+            mvprintw(paddleLeft->segments[0].y, paddleLeft->segments[0].x, "  ");
+            paddleLeft->segments[i].y += 1;
         }
     }
     // Update right paddle
-    if (paddle_right->direction == UP && paddle_right->segments[0].y != 1)
+    if (paddleRight->direction == UP && paddleRight->segments[0].y != 1)
     {
         for (int i = 0; i < PADDLE_LENGHT; i++)
         {
-            mvprintw(paddle_right->segments[PADDLE_LENGHT - 1].y, paddle_right->segments[PADDLE_LENGHT - 1].x, "  ");
-            paddle_right->segments[i].y -= 1;
+            mvprintw(paddleRight->segments[PADDLE_LENGHT - 1].y, paddleRight->segments[PADDLE_LENGHT - 1].x, "  ");
+            paddleRight->segments[i].y -= 1;
         }
     }
-    else if (paddle_right->direction == DOWN && paddle_right->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
+    else if (paddleRight->direction == DOWN && paddleRight->segments[PADDLE_LENGHT - 1].y != BOARD_HEIGHT)
     {
         for (int i = 0; i < PADDLE_LENGHT; i++)
         {
-            mvprintw(paddle_right->segments[0].y, paddle_right->segments[0].x, "  ");
-            paddle_right->segments[i].y += 1;
+            mvprintw(paddleRight->segments[0].y, paddleRight->segments[0].x, "  ");
+            paddleRight->segments[i].y += 1;
         }
     }
 }
@@ -209,43 +204,103 @@ void generate_ball(Ball *ball)
     ball->location.x = BOARD_WIDTH / 2;
     ball->location.y = BOARD_HEIGHT / 2;
     ball->speed = INITIAL_BALL_SPEED;
-    ball->theta_degrees = INITIAL_BALL_THETA;
+    ball->thetaDeg = INITIAL_BALL_THETA;
 
-    int ball_theta_radians = ball->theta_degrees * PI / 180.0;
-    ball->speed_x = ball->speed * cos(ball_theta_radians);
-    ball->speed_y = ball->speed * sin(ball_theta_radians);
+    double thetaRad = ball->thetaDeg * PI / 180.0;
+    ball->speedX = ball->speed * cos(thetaRad);
+    ball->speedY = ball->speed * sin(thetaRad);
 }
 
 void draw_ball(Ball *ball)
 {
-    mvprintw(ball->location.y, ball->location.x, "o");
+    mvprintw(ball->location.y, ball->location.x, "O");
 }
 
-void move_ball(Ball *ball)
+void move_ball(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight)
 {
-    // mvprintw(ball->location.y, ball->location.x, " ");
+    int prevX = ball->location.x;
+    int prevY = ball->location.y;
 
-    // Check collision TOP and BOTTOM Wall
+    double thetaRad = ball->thetaDeg * PI / 180;
+    ball->speedX = ball->speed * cos(thetaRad);
+    ball->speedY = ball->speed * sin(thetaRad);
+
+    ball->location.x = round(ball->speedX + ball->location.x);
+    ball->location.y = round(ball->speedY + ball->location.y);
+
+    // Draw the ball in its new position
+    draw_ball(ball);
+
+    //Clear the previous ball position
+    mvprintw(prevY, prevX, " ");
+}
+
+void check_ball_top_down_wall_collision(Ball *ball)
+{
     if (ball->location.y == 1 || ball->location.y == BOARD_HEIGHT)
     {
-        ball->theta_degrees = 360 - ball->theta_degrees;
+        ball->thetaDeg = 360 - ball->thetaDeg;
     }
-
-    if (ball->location.x == 1 || ball->location.x == BOARD_WIDTH)
-    {
-        ball->theta_degrees = 180 - ball->theta_degrees;
-    }
-
-    ball->location.x += ball->speed_x;
-    ball->location.y += ball->speed_y;
-
 }
 
+void check_ball_side_wall_collision(Ball *ball, Paddle **paddleLeft, Paddle **paddleRight, int scoreLeft, int scoreRight)
+{
+    if (ball->location.x == 1)
+    {
+        scoreRight ++;
+        reset_game(ball, *paddleLeft, *paddleRight);
+    }
+    else if (ball->location.x == BOARD_WIDTH)
+    {
+        scoreRight ++;
+        reset_game(ball, *paddleLeft, *paddleRight);
+    }
+}
 
+void check_ball_paddle_collision(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight)
+{
+    for (int i = 0; i < PADDLE_LENGHT; i++)
+    {
+        if (ball->location.x == paddleLeft->segments[i].x + 1 && ball->location.y == paddleLeft->segments[i].y ||
+            ball->location.x == paddleRight->segments[i].x - 1 && ball->location.y == paddleRight->segments[i].y)
+            {
+                ball->thetaDeg = 180 - ball->thetaDeg;
+            }
+    }
+}
 
+void reset_game(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight)
+{
+    generate_paddles(paddleLeft, paddleRight);
+    generate_ball(ball);
+}
 
+void game_loop(Ball *ball, Paddle *paddleLeft, Paddle *paddleRight, int *scoreLeft, int *scoreRight)
+{
+    while(*scoreLeft < 3 || *scoreRight < 3)
+    {
+        int userInput;
+        userInput = getch();
 
+        draw_board();
 
+        draw_paddles(paddleLeft, paddleRight);
+        draw_ball(ball);
 
+        handle_input(paddleLeft, paddleRight, userInput);
+        move_paddles(paddleLeft, paddleRight);
+        move_ball(ball, paddleLeft, paddleRight);
+        check_ball_top_down_wall_collision(ball);
+        check_ball_side_wall_collision(ball, &paddleLeft, &paddleRight, *scoreLeft, *scoreRight);
+        check_ball_paddle_collision(ball, paddleLeft, paddleRight);
+
+        refresh();
+
+        if (userInput == 'q')
+        {
+            break;
+        }
+    }
+}
 
 
